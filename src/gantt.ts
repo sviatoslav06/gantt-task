@@ -21,24 +21,51 @@ export function renderGantt(tasks: GanttTask[]): string {
         return taskStart < earliest ? taskStart : earliest;
     }, new Date(tasks[0].startDate)).toISOString().split('T')[0];
 
+    const chartEndDate = tasks.reduce((latest, task) => {
+        const taskEnd = new Date(task.endDate);
+        return taskEnd > latest ? taskEnd : latest;
+    }, new Date(tasks[0].endDate)).toISOString().split('T')[0];
+
+    const totalDays = Math.ceil(
+        (new Date(chartEndDate).getTime() - new Date(chartStartDate).getTime()) 
+        / (1000 * 60 * 60 * 24)
+    );
+
     const stages = Array.from(new Set(tasks.map(task => task.stage)));
 
-    let leftHtml = '<div class="flex flex-col w-64">';
+    let headerHtml = '<div class="flex">';
+    for (let i = 0; i < totalDays; i++) {
+        headerHtml += `<div class="w-8 h-8 flex items-center justify-center text-xs border-r border-gray-200">${i + 1}</div>`;
+    }
+    headerHtml += '</div>';
+
+    let leftHtml = '<div class="flex flex-col" style="width: 200px; min-width: 200px;">';
+    leftHtml += '<div class="h-8"></div>';
+
     let rightHtml = '<div class="overflow-x-auto flex-1"><div class="flex flex-col">';
 
     stages.forEach(stage => {
         leftHtml += `<div class="h-8 flex items-center font-bold">${stage}</div>`;
         rightHtml += `<div class="h-8"></div>`; // порожній рядок для етапу
 
-        tasks.filter(t => t.stage === stage).forEach(task => {
-            leftHtml += `<div class="h-8 flex items-center pl-4">${task.title}</div>`;
-            const { left, width } = getTaskPosition(task.startDate, task.endDate, chartStartDate);
-            rightHtml += `<div class="relative h-8"><div style="position: absolute; top: 4px; left: ${left * 32}px; width: ${width * 32}px; height: 24px; background: blue;"></div></div>`;
+        const assignees = Array.from(new Set(
+        tasks.filter(t => t.stage === stage).map(t => t.assignee)
+        ));
+
+        assignees.forEach(assignee => {
+            leftHtml += `<div class="h-8 flex items-center pl-4 font-semibold">${assignee}</div>`;
+            rightHtml += `<div class="h-8"></div>`; // порожній рядок для відповідального
+
+            tasks.filter(t => t.stage === stage && t.assignee === assignee).forEach(task => {
+                leftHtml += `<div class="h-8 flex items-center pl-8">${task.title}</div>`;
+                const { left, width } = getTaskPosition(task.startDate, task.endDate, chartStartDate);
+                rightHtml += `<div class="relative h-8"><div style="position: absolute; top: 4px; left: ${left * 32}px; width: ${width * 32}px; height: 24px; background: blue;"></div></div>`;
+            });
         });
     });
 
     leftHtml += '</div>';
     rightHtml += '</div></div>';
 
-    return `<div class="flex">${leftHtml}${rightHtml}</div>`;
+    return `<div class="flex">${leftHtml}<div class="flex-1">${headerHtml}${rightHtml}</div></div>`;
 }
