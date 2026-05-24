@@ -53,13 +53,13 @@ export function renderGantt(tasks: GanttTask[]): string {
         ));
 
         assignees.forEach(assignee => {
-            leftHtml += `<div class="h-8 flex items-center pl-4 font-semibold" data-stage="${stage}">${assignee}</div>`;
+            leftHtml += `<div class="h-8 flex items-center pl-4 font-semibold cursor-pointer" data-toggle="assignee" data-stage="${stage}" data-assignee="${assignee}">${assignee} ▾</div>`;
             rightHtml += `<div class="h-8" data-stage="${stage}"></div>`;
 
             tasks.filter(t => t.stage === stage && t.assignee === assignee).forEach(task => {
-                leftHtml += `<div class="h-8 flex items-center pl-8" data-stage="${stage}">${task.title}</div>`;
+                leftHtml += `<div class="h-8 flex items-center pl-8" data-stage="${stage}" data-assignee="${assignee}">${task.title}</div>`;
                 const { left, width } = getTaskPosition(task.startDate, task.endDate, chartStartDate);
-                rightHtml += `<div class="relative h-8" data-stage="${stage}"><div style="position: absolute; top: 4px; left: ${left * 32}px; width: ${width * 32}px; height: 24px; background: blue;"></div></div>`;
+                rightHtml += `<div class="relative h-8" data-stage="${stage}" data-assignee="${assignee}"><div style="position: absolute; top: 4px; left: ${left * 32}px; width: ${width * 32}px; height: 24px; background: blue;"></div></div>`;
             });
         });
     });
