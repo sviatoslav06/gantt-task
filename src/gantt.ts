@@ -45,21 +45,21 @@ export function renderGantt(tasks: GanttTask[]): string {
     let rightHtml = '<div class="overflow-x-auto flex-1"><div class="flex flex-col">';
 
     stages.forEach(stage => {
-        leftHtml += `<div class="h-8 flex items-center font-bold">${stage}</div>`;
-        rightHtml += `<div class="h-8"></div>`; // порожній рядок для етапу
+        leftHtml += `<div class="h-8 flex items-center font-bold cursor-pointer" data-toggle="stage" data-stage="${stage}">${stage} ▾</div>`;
+        rightHtml += `<div class="h-8"></div>`;
 
         const assignees = Array.from(new Set(
         tasks.filter(t => t.stage === stage).map(t => t.assignee)
         ));
 
         assignees.forEach(assignee => {
-            leftHtml += `<div class="h-8 flex items-center pl-4 font-semibold">${assignee}</div>`;
-            rightHtml += `<div class="h-8"></div>`; // порожній рядок для відповідального
+            leftHtml += `<div class="h-8 flex items-center pl-4 font-semibold" data-stage="${stage}">${assignee}</div>`;
+            rightHtml += `<div class="h-8" data-stage="${stage}"></div>`;
 
             tasks.filter(t => t.stage === stage && t.assignee === assignee).forEach(task => {
-                leftHtml += `<div class="h-8 flex items-center pl-8">${task.title}</div>`;
+                leftHtml += `<div class="h-8 flex items-center pl-8" data-stage="${stage}">${task.title}</div>`;
                 const { left, width } = getTaskPosition(task.startDate, task.endDate, chartStartDate);
-                rightHtml += `<div class="relative h-8"><div style="position: absolute; top: 4px; left: ${left * 32}px; width: ${width * 32}px; height: 24px; background: blue;"></div></div>`;
+                rightHtml += `<div class="relative h-8" data-stage="${stage}"><div style="position: absolute; top: 4px; left: ${left * 32}px; width: ${width * 32}px; height: 24px; background: blue;"></div></div>`;
             });
         });
     });
