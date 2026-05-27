@@ -4,6 +4,67 @@ const DAY_WIDTH = 32;
 const ROW_HEIGHT = 44;
 const LEFT_WIDTH = 270;
 
+// ---------------------------------------------------------------------------
+// Date helpers
+// ---------------------------------------------------------------------------
+
+function parseDate(dateStr: string): Date {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day));
+}
+
+function isoToDateStr(iso: string): string {
+    return iso.slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// Bar resolution
+// ---------------------------------------------------------------------------
+
+type BarStyle = "solid" | "ghost";
+
+interface ResolvedBar {
+    dateStr: string;          
+    endDateStr: string;       
+    style: BarStyle;
+}
+
+function resolveTaskBar(task: GanttTask): ResolvedBar | null {
+    const { id, insertedAt, startDate, endDate } = task;
+
+    // Completely invalid — no anchor date at all
+    if (!insertedAt && !startDate) {
+        console.error(
+            `[Gantt] Task id="${id}" is invalid: both insertedAt and startDate are missing. Skipping render.`
+        );
+        return null;
+    }
+
+    const insertedDateStr = insertedAt ? isoToDateStr(insertedAt) : undefined;
+
+    // Case 1: inserted + start + end  ->  solid bar from start to end
+    if (startDate && endDate) {
+        return { dateStr: startDate, endDateStr: endDate, style: "solid" };
+    }
+
+    // Case 2: inserted + NO start + end  ->  solid bar from inserted to end
+    if (!startDate && endDate) {
+        return { dateStr: insertedDateStr!, endDateStr: endDate, style: "solid" };
+    }
+
+    // Case 3: inserted + NO start + NO end  ->  ghost at inserted day
+    if (!startDate && !endDate) {
+        return { dateStr: insertedDateStr!, endDateStr: insertedDateStr!, style: "ghost" };
+    }
+
+    // Case 4: inserted + start + NO end  ->  ghost at start day (start > inserted)
+    return { dateStr: startDate!, endDateStr: startDate!, style: "ghost" };
+}
+
+// ---------------------------------------------------------------------------
+// Position helper
+// ---------------------------------------------------------------------------
+
 export function getTaskPosition(
     startDate: string,
     endDate: string,
@@ -14,41 +75,29 @@ export function getTaskPosition(
     const chartStart = parseDate(chartStartDate);
 
     const left = Math.floor(
-        (start.getTime() - chartStart.getTime()) /
-        (1000 * 60 * 60 * 24)
+        (start.getTime() - chartStart.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     const width =
-        Math.ceil(
-            (end.getTime() - start.getTime()) /
-            (1000 * 60 * 60 * 24)
-        ) + 1;
+        Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     return { left, width };
 }
 
-function parseDate(dateStr: string): Date {
-    const [year, month, day] = dateStr.split("-").map(Number);
+// ---------------------------------------------------------------------------
+// Background grid helper
+// ---------------------------------------------------------------------------
 
-    return new Date(Date.UTC(year, month - 1, day));
-}
-
-function buildRowBg(
-    totalDays: number,
-    chartStartDate: Date
-): string {
+function buildRowBg(totalDays: number, chartStartDate: Date): string {
     const stops: string[] = [];
 
     for (let i = 0; i < totalDays; i++) {
         const date = new Date(chartStartDate);
-
         date.setUTCDate(date.getUTCDate() + i);
-
         const dow = date.getUTCDay();
 
         if (dow === 0 || dow === 6) {
             const left = i * DAY_WIDTH;
-
             stops.push(
                 `transparent ${left}px`,
                 `#f3f4f6 ${left}px`,
@@ -70,505 +119,238 @@ function buildRowBg(
         )
     `;
 
-    if (stops.length === 0) {
-        return `background-image:${gridGradient};`;
-    }
+    if (stops.length === 0) return `background-image:${gridGradient};`;
 
-    const weekendGradient = `
-        linear-gradient(
-            90deg,
-            ${stops.join(",")}
-        )
-    `;
-
-    return `
-        background-image:${weekendGradient},${gridGradient};
-    `;
+    const weekendGradient = `linear-gradient(90deg, ${stops.join(",")})`;
+    return `background-image:${weekendGradient},${gridGradient};`;
 }
 
+// ---------------------------------------------------------------------------
+// Main render
+// ---------------------------------------------------------------------------
+
 export function renderGantt(tasks: GanttTask[]): string {
-    const chartStartDate = tasks.reduce((earliest, task) => {
-        const taskStart = parseDate(task.startDate);
+    type TaskWithBar = { task: GanttTask; bar: ResolvedBar };
 
-        return taskStart < earliest
-            ? taskStart
-            : earliest;
-    }, parseDate(tasks[0].startDate));
+    const resolved: TaskWithBar[] = tasks.flatMap(task => {
+        const bar = resolveTaskBar(task);
+        return bar ? [{ task, bar }] : [];
+    });
 
-    chartStartDate.setUTCDate(
-        chartStartDate.getUTCDate() - 7
-    );
+    const chartStartDate = resolved.reduce((earliest, { bar }) => {
+        const d = parseDate(bar.dateStr);
+        return d < earliest ? d : earliest;
+    }, parseDate(resolved[0].bar.dateStr));
 
-    const chartStartDateStr = `${chartStartDate.getUTCFullYear()}-${String(
-        chartStartDate.getUTCMonth() + 1
-    ).padStart(2, "0")}-${String(
-        chartStartDate.getUTCDate()
-    ).padStart(2, "0")}`;
+    chartStartDate.setUTCDate(chartStartDate.getUTCDate() - 7);
 
-    const chartEndDate = tasks.reduce((latest, task) => {
-        const taskEnd = parseDate(task.endDate);
+    const toDateStr = (d: Date) =>
+        `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
+            d.getUTCDate()
+        ).padStart(2, "0")}`;
 
-        return taskEnd > latest
-            ? taskEnd
-            : latest;
-    }, parseDate(tasks[0].endDate));
+    const chartStartDateStr = toDateStr(chartStartDate);
 
-    chartEndDate.setUTCDate(
-        chartEndDate.getUTCDate() + 7
-    );
+    const chartEndDate = resolved.reduce((latest, { bar }) => {
+        const d = parseDate(bar.endDateStr);
+        return d > latest ? d : latest;
+    }, parseDate(resolved[0].bar.endDateStr));
 
-    const chartEndDateStr = `${chartEndDate.getUTCFullYear()}-${String(
-        chartEndDate.getUTCMonth() + 1
-    ).padStart(2, "0")}-${String(
-        chartEndDate.getUTCDate()
-    ).padStart(2, "0")}`;
+    chartEndDate.setUTCDate(chartEndDate.getUTCDate() + 7);
+    const chartEndDateStr = toDateStr(chartEndDate);
 
     const totalDays =
         Math.ceil(
-            (parseDate(chartEndDateStr).getTime() -
-                parseDate(chartStartDateStr).getTime()) /
+            (parseDate(chartEndDateStr).getTime() - parseDate(chartStartDateStr).getTime()) /
                 (1000 * 60 * 60 * 24)
         ) + 1;
 
-    const stages = Array.from(
-        new Set(tasks.map(task => task.stage))
-    );
-
+    const stages = Array.from(new Set(tasks.map(t => t.stage)));
     const timelineWidth = totalDays * DAY_WIDTH;
+    const rowBg = buildRowBg(totalDays, chartStartDate);
 
-    const rowBg = buildRowBg(
-        totalDays,
-        chartStartDate
-    );
+    /* ---- HEADER ---- */
 
-    /* ---------------- HEADER ---------------- */
-
-    let monthHtml = `
-        <div
-            class="flex bg-[#f8fafc]"
-            style="width:${timelineWidth}px"
-        >
-    `;
-
-    let dayHtml = `
-        <div
-            class="flex bg-[#f8fafc]"
-            style="width:${timelineWidth}px"
-        >
-    `;
+    let monthHtml = `<div class="flex bg-[#f8fafc]" style="width:${timelineWidth}px">`;
+    let dayHtml = `<div class="flex bg-[#f8fafc]" style="width:${timelineWidth}px">`;
 
     for (let i = 0; i < totalDays; i++) {
         const date = new Date(chartStartDate);
-
         date.setUTCDate(date.getUTCDate() + i);
-
         const day = date.getUTCDate();
-
-        const month = date.toLocaleString("uk", {
-            month: "long",
-            timeZone: "UTC",
-        });
-
+        const month = date.toLocaleString("uk", { month: "long", timeZone: "UTC" });
         const year = date.getUTCFullYear();
 
         if (i === 0 || day === 1) {
             let daysInMonth = 0;
-
             for (let j = i; j < totalDays; j++) {
                 const d = new Date(chartStartDate);
-
                 d.setUTCDate(d.getUTCDate() + j);
-
-                if (
-                    d.getUTCMonth() !==
-                    date.getUTCMonth()
-                ) {
-                    break;
-                }
-
+                if (d.getUTCMonth() !== date.getUTCMonth()) break;
                 daysInMonth++;
             }
-
             monthHtml += `
                 <div
-                    style="
-                        width:${daysInMonth * DAY_WIDTH}px
-                    "
-                    class="
-                        h-10
-                        flex
-                        items-center
-                        justify-center
-                        text-[12px]
-                        font-semibold
-                        border-r
-                        border-b
-                        border-[#dbe1e8]
-                        capitalize
-                        text-[#98a2b3]
-                    "
+                    style="width:${daysInMonth * DAY_WIDTH}px"
+                    class="h-10 flex items-center justify-center text-[12px] font-semibold border-r border-b border-[#dbe1e8] capitalize text-[#98a2b3]"
                 >
                     ${month} ${year}
-                </div>
-            `;
+                </div>`;
         }
 
         const isToday =
             date.getTime() ===
             new Date(
-                Date.UTC(
-                    new Date().getFullYear(),
-                    new Date().getMonth(),
-                    new Date().getDate()
-                )
+                Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
             ).getTime();
 
         dayHtml += `
             <div
-                class="
-                    flex
-                    items-center
-                    justify-center
-                    border-r
-                    border-b
-                    border-[#dbe1e8]
-                    text-[12px]
-                    ${
-                        isToday
-                            ? "text-black font-bold"
-                            : "text-[#98a2b3]"
-                    }
-                "
-                style="
-                    width:${DAY_WIDTH}px;
-                    height:40px;
-                "
-            >
-                ${day}
-            </div>
-        `;
+                class="flex items-center justify-center border-r border-b border-[#dbe1e8] text-[12px] ${
+                    isToday ? "text-black font-bold" : "text-[#98a2b3]"
+                }"
+                style="width:${DAY_WIDTH}px;height:40px;"
+            >${day}</div>`;
     }
 
     monthHtml += "</div>";
     dayHtml += "</div>";
-
-    const rightHeaderHtml =
-        monthHtml + dayHtml;
+    const rightHeaderHtml = monthHtml + dayHtml;
 
     const leftHeaderHtml = `
-        <div
-            class="
-                flex
-                flex-col
-                justify-center
-                h-20
-                px-4
-            "
-        >
-            <div
-                class="
-                    uppercase
-                    text-[12px]
-                    font-semibold
-                    text-[#98a2b3]
-                "
-            >
-                ЕТАП
-            </div>
+        <div class="flex flex-col justify-center h-20 px-4">
+            <div class="uppercase text-[12px] font-semibold text-[#98a2b3]">ЕТАП</div>
+            <div class="text-[13px] text-[#667085] mt-1">Відповідальний / Виріб</div>
+        </div>`;
 
-            <div
-                class="
-                    text-[13px]
-                    text-[#667085]
-                    mt-1
-                "
-            >
-                Відповідальний / Виріб
-            </div>
-        </div>
-    `;
-
-    /* ---------------- TODAY LINE ---------------- */
+    /* ---- TODAY LINE ---- */
 
     const today = new Date();
-
     const todayUTC = new Date(
-        Date.UTC(
-            today.getFullYear(),
-            today.getMonth(),
-            today.getDate()
-        )
+        Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
     );
-
     const todayOffset = Math.floor(
-        (todayUTC.getTime() -
-            chartStartDate.getTime()) /
-            (1000 * 60 * 60 * 24)
+        (todayUTC.getTime() - chartStartDate.getTime()) / (1000 * 60 * 60 * 24)
     );
+    const todayLineLeft = todayOffset * DAY_WIDTH + DAY_WIDTH / 2;
 
-    const todayLineLeft =
-        todayOffset * DAY_WIDTH +
-        DAY_WIDTH / 2;
+    /* ---- BODY ---- */
 
-    /* ---------------- BODY ---------------- */
-
-    let leftHtml = `
-        <div
-            class="flex flex-col"
-            style="
-                width:${LEFT_WIDTH}px;
-                min-width:${LEFT_WIDTH}px;
-            "
-        >
-    `;
+    let leftHtml = `<div class="flex flex-col" style="width:${LEFT_WIDTH}px;min-width:${LEFT_WIDTH}px;">`;
 
     let rightHtml = `
         <div style="width:${timelineWidth}px">
-            <div
-                class="relative flex flex-col"
-                style="isolation:isolate;"
-            >
-    `;
+            <div class="relative flex flex-col" style="isolation:isolate;">`;
 
-    if (
-        todayOffset >= 0 &&
-        todayOffset < totalDays
-    ) {
+    if (todayOffset >= 0 && todayOffset < totalDays) {
         rightHtml += `
             <div
-                class="
-                    absolute
-                    top-0
-                    bottom-0
-                    w-[2px]
-                    bg-[#2b2f38]
-                    pointer-events-none
-                    z-20
-                "
-                style="
-                    left:${todayLineLeft}px;
-                "
-            ></div>
-        `;
+                class="absolute top-0 bottom-0 w-[2px] bg-[#2b2f38] pointer-events-none z-20"
+                style="left:${todayLineLeft}px;"
+            ></div>`;
     }
 
     stages.forEach(stage => {
-        /* ---------------- STAGE ---------------- */
-
+        /* -- Stage row -- */
         leftHtml += `
             <div
-                class="
-                    flex
-                    items-center
-                    font-bold
-                    cursor-pointer
-                    border-b
-                    border-r
-                    border-[#dbe1e8]
-                    px-4
-                    uppercase
-                    bg-[#fafafa]
-                    text-[#1f2937]
-                    text-[15px]
-                "
-                style="
-                    height:${ROW_HEIGHT}px
-                "
-                data-toggle="stage"
-                data-stage="${stage}"
+                class="flex items-center font-bold cursor-pointer border-b border-r border-[#dbe1e8] px-4 uppercase bg-[#fafafa] text-[#1f2937] text-[15px]"
+                style="height:${ROW_HEIGHT}px"
+                data-toggle="stage" data-stage="${stage}"
             >
-                <div
-                    class="
-                        collapse-icon
-                        mr-3
-                        w-5
-                        h-5
-                        rounded
-                        border
-                        border-[#d0d5dd]
-                        flex
-                        items-center
-                        justify-center
-                        text-[#667085]
-                        text-[12px]
-                    "
-                >
-                    −
-                </div>
-
+                <div class="collapse-icon mr-3 w-5 h-5 rounded border border-[#d0d5dd] flex items-center justify-center text-[#667085] text-[12px]">−</div>
                 ${stage}
-            </div>
-        `;
+            </div>`;
 
         rightHtml += `
-            <div
-                class="
-                    border-b
-                    border-[#dbe1e8]
-                "
-                style="
-                    height:${ROW_HEIGHT}px;
-                    ${rowBg}
-                "
-            ></div>
-        `;
+            <div class="border-b border-[#dbe1e8]" style="height:${ROW_HEIGHT}px;${rowBg}"></div>`;
 
         const assignees = Array.from(
-            new Set(
-                tasks
-                    .filter(
-                        t => t.stage === stage
-                    )
-                    .map(t => t.assignee)
-            )
+            new Set(tasks.filter(t => t.stage === stage).map(t => t.assignee))
         );
 
         assignees.forEach(assignee => {
-            /* ---------------- ASSIGNEE ---------------- */
-
+            /* -- Assignee row -- */
             leftHtml += `
                 <div
-                    class="
-                        flex
-                        items-center
-                        pl-5
-                        font-semibold
-                        cursor-pointer
-                        border-b
-                        border-[#dbe1e8]
-                        capitalize
-                        text-[#344054]
-                        text-[14px]
-                    "
-                    style="
-                        height:${ROW_HEIGHT}px
-                    "
-                    data-toggle="assignee"
-                    data-stage="${stage}"
-                    data-assignee="${assignee}"
+                    class="flex items-center pl-5 font-semibold cursor-pointer border-b border-[#dbe1e8] capitalize text-[#344054] text-[14px]"
+                    style="height:${ROW_HEIGHT}px"
+                    data-toggle="assignee" data-stage="${stage}" data-assignee="${assignee}"
                 >
-                    <div
-                        class="
-                            mr-3
-                            w-6
-                            h-6
-                            rounded-full
-                            bg-[#dbeafe]
-                            border
-                            border-[#bfdbfe]
-                            flex
-                            items-center
-                            justify-center
-                            text-[#2563eb]
-                            text-[11px]
-                            font-semibold
-                            shrink-0
-                        "
-                    >
+                    <div class="mr-3 w-6 h-6 rounded-full bg-[#dbeafe] border border-[#bfdbfe] flex items-center justify-center text-[#2563eb] text-[11px] font-semibold shrink-0">
                         ${assignee.charAt(0).toUpperCase()}
                     </div>
-
                     ${assignee}
-                </div>
-            `;
+                </div>`;
 
             rightHtml += `
                 <div
-                    class="
-                        border-b
-                        border-[#dbe1e8]
-                    "
+                    class="border-b border-[#dbe1e8]"
                     data-stage="${stage}"
-                    style="
-                        height:${ROW_HEIGHT}px;
-                        ${rowBg}
-                    "
-                ></div>
-            `;
+                    style="height:${ROW_HEIGHT}px;${rowBg}"
+                ></div>`;
 
+            /* -- Task rows -- */
             tasks
-                .filter(
-                    t =>
-                        t.stage === stage &&
-                        t.assignee === assignee
-                )
+                .filter(t => t.stage === stage && t.assignee === assignee)
                 .forEach(task => {
+                    const bar = resolveTaskBar(task);
+
                     leftHtml += `
                         <div
-                            class="
-                                flex
-                                items-center
-                                pl-10
-                                border-b
-                                border-[#dbe1e8]
-                                text-[14px]
-                                text-[#2563eb]
-                            "
-                            style="
-                                height:${ROW_HEIGHT}px
-                            "
-                            data-stage="${stage}"
-                            data-assignee="${assignee}"
+                            class="flex items-center pl-10 border-b border-[#dbe1e8] text-[14px] ${ bar?.style === 'ghost' ? 'text-[#98a2b3]' : 'text-[#2563eb]' }"
+                            style="height:${ROW_HEIGHT}px"
+                            data-stage="${stage}" data-assignee="${assignee}"
                         >
-                            <span
-                                class="
-                                    mr-3
-                                    text-[#98a2b3]
-                                    text-[18px]
-                                "
-                            >
-                                °
-                            </span>
-
+                            <span class="mr-3 text-[18px]">°</span>
                             ${task.title}
-                        </div>
-                    `;
+                        </div>`;
 
-                    const { left, width } =
-                        getTaskPosition(
-                            task.startDate,
-                            task.endDate,
-                            chartStartDateStr
-                        );
+                    if (!bar) {
+                        rightHtml += `
+                            <div
+                                class="relative border-b border-[#dbe1e8]"
+                                data-stage="${stage}" data-assignee="${assignee}"
+                                style="height:${ROW_HEIGHT}px;${rowBg}"
+                            ></div>`;
+                        return;
+                    }
+
+                    const { left, width } = getTaskPosition(
+                        bar.dateStr,
+                        bar.endDateStr,
+                        chartStartDateStr
+                    );
+
+                    const isGhost = bar.style === "ghost";
+
+                    const barStyles = isGhost
+                        ? `
+                            top:10px;
+                            left:${left * DAY_WIDTH + 4}px;
+                            width:${Math.max(width, 1) * DAY_WIDTH - 8}px;
+                            height:24px;
+                            background:transparent;
+                            border:2px solid #98a2b3;
+                            border-radius:9999px;
+                          `
+                        : `
+                            top:10px;
+                            left:${left * DAY_WIDTH + 4}px;
+                            width:${width * DAY_WIDTH - 8}px;
+                            height:24px;
+                            background:#145af2;
+                            border-radius:9999px;
+                          `;
 
                     rightHtml += `
                         <div
-                            class="
-                                relative
-                                border-b
-                                border-[#dbe1e8]
-                            "
-                            data-stage="${stage}"
-                            data-assignee="${assignee}"
-                            style="
-                                height:${ROW_HEIGHT}px;
-                                ${rowBg}
-                            "
+                            class="relative border-b border-[#dbe1e8]"
+                            data-stage="${stage}" data-assignee="${assignee}"
+                            style="height:${ROW_HEIGHT}px;${rowBg}"
                         >
-                            <div
-                                class="
-                                    absolute
-                                    rounded-full
-                                    bg-[#145af2]
-                                    shadow-sm
-                                "
-                                style="
-                                    top:10px;
-                                    left:${
-                                        left *
-                                            DAY_WIDTH +
-                                        4
-                                    }px;
-                                    width:${
-                                        width *
-                                            DAY_WIDTH -
-                                        8
-                                    }px;
-                                    height:24px;
-                                "
-                            ></div>
-                        </div>
-                    `;
+                            <div class="absolute shadow-sm" style="${barStyles}"></div>
+                        </div>`;
                 });
         });
     });
@@ -576,81 +358,26 @@ export function renderGantt(tasks: GanttTask[]): string {
     leftHtml += "</div>";
     rightHtml += "</div></div>";
 
-    /* ---------------- FINAL ---------------- */
+    /* ---- FINAL ---- */
 
     return `
-        <div
-            class="
-                flex
-                flex-col
-                border
-                border-[#dbe1e8]
-                rounded-xl
-                bg-white
-            "
-        >
-            <div
-                class="
-                    flex
-                    sticky
-                    top-0
-                    z-50
-                    bg-[#f8fafc]
-                    text-[#98a2b3]
-                    border-b
-                    border-[#dbe1e8]
-                "
-            >
-                <div
-                    class="
-                        border-r
-                        border-[#dbe1e8]
-                    "
-                    style="
-                        width:${LEFT_WIDTH}px;
-                        min-width:${LEFT_WIDTH}px;
-                    "
-                >
+        <div class="flex flex-col border border-[#dbe1e8] rounded-xl bg-white">
+            <div class="flex sticky top-0 z-50 bg-[#f8fafc] text-[#98a2b3] border-b border-[#dbe1e8]">
+                <div class="border-r border-[#dbe1e8]" style="width:${LEFT_WIDTH}px;min-width:${LEFT_WIDTH}px;">
                     ${leftHeaderHtml}
                 </div>
-
-                <div
-                    class="
-                        header-scroll
-                        overflow-hidden
-                        flex-1
-                    "
-                >
-                    <div style="width:max-content">
-                        ${rightHeaderHtml}
-                    </div>
+                <div class="header-scroll overflow-hidden flex-1">
+                    <div style="width:max-content">${rightHeaderHtml}</div>
                 </div>
             </div>
 
             <div class="flex">
-                <div
-                    class="
-                        border-r
-                        border-[#dbe1e8]
-                    "
-                    style="
-                        width:${LEFT_WIDTH}px;
-                        min-width:${LEFT_WIDTH}px;
-                    "
-                >
+                <div class="border-r border-[#dbe1e8]" style="width:${LEFT_WIDTH}px;min-width:${LEFT_WIDTH}px;">
                     ${leftHtml}
                 </div>
-
-                <div
-                    class="
-                        overflow-x-auto
-                        body-scroll
-                        flex-1
-                    "
-                >
+                <div class="overflow-x-auto body-scroll flex-1">
                     ${rightHtml}
                 </div>
             </div>
-        </div>
-    `;
+        </div>`;
 }

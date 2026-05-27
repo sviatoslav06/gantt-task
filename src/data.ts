@@ -4,8 +4,9 @@ export interface GanttTask {
     assignee: string;
     avatarUrl: string | null;
     title: string;
-    startDate: string;
-    endDate: string;
+    insertedAt?: string;       
+    startDate?: string;        
+    endDate?: string;          
 }
 
 export const ganttData: GanttTask[] = [
@@ -15,6 +16,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Максим С.",
     avatarUrl: "./avatars/maksym.jpg",
     title: "Барна стійка",
+    insertedAt: "2026-03-24T09:12:44.000Z",
     startDate: "2026-04-02",
     endDate: "2026-04-10",
   },
@@ -24,6 +26,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Максим С.",
     avatarUrl: "./avatars/maksym.jpg",
     title: "Лавка",
+    insertedAt: "2026-03-25T11:30:00.000Z",
     startDate: "2026-04-08",
     endDate: "2026-04-14",
   },
@@ -33,6 +36,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Олена К.",
     avatarUrl: "./avatars/olena.jpg",
     title: "Шафа у спальню",
+    insertedAt: "2026-03-26T08:45:22.000Z",
     startDate: "2026-04-05",
     endDate: "2026-04-18",
   },
@@ -42,6 +46,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Без відповідального",
     avatarUrl: null,
     title: "Кухня",
+    insertedAt: "2026-03-27T14:00:00.000Z",
     startDate: "2026-04-12",
     endDate: "2026-04-28",
   },
@@ -51,8 +56,9 @@ export const ganttData: GanttTask[] = [
     assignee: "Ірина М.",
     avatarUrl: "./avatars/iryna.jpg",
     title: "Тумба під ТВ",
+    insertedAt: "2026-03-28T10:20:00.000Z",
     startDate: "2026-04-20",
-    endDate: "2026-04-31",
+    endDate: "2026-04-30",
   },
   {
     id: "task-006",
@@ -60,6 +66,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Андрій П.",
     avatarUrl: "./avatars/andrii.jpg",
     title: "Корпус кухні",
+    insertedAt: "2026-04-01T09:00:00.000Z",
     startDate: "2026-04-16",
     endDate: "2026-05-04",
   },
@@ -69,6 +76,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Андрій П.",
     avatarUrl: "./avatars/andrii.jpg",
     title: "Фасади кухні",
+    insertedAt: "2026-04-02T13:15:00.000Z",
     startDate: "2026-04-25",
     endDate: "2026-05-12",
   },
@@ -78,6 +86,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Сергій Д.",
     avatarUrl: "./avatars/serhii.jpg",
     title: "Стільниця",
+    insertedAt: "2026-04-10T08:30:00.000Z",
     startDate: "2026-05-01",
     endDate: "2026-05-08",
   },
@@ -87,6 +96,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Сергій Д.",
     avatarUrl: "./avatars/serhii.jpg",
     title: "Шухляди",
+    insertedAt: "2026-04-11T16:00:00.000Z",
     startDate: "2026-05-06",
     endDate: "2026-05-17",
   },
@@ -96,6 +106,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Без відповідального",
     avatarUrl: null,
     title: "Полиці",
+    insertedAt: "2026-04-15T10:00:00.000Z",
     startDate: "2026-05-10",
     endDate: "2026-05-20",
   },
@@ -105,6 +116,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Наталія Р.",
     avatarUrl: "./avatars/nataliia.jpg",
     title: "Фурнітура для кухні",
+    insertedAt: "2026-03-30T09:45:00.000Z",
     startDate: "2026-04-10",
     endDate: "2026-04-22",
   },
@@ -114,6 +126,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Наталія Р.",
     avatarUrl: "./avatars/nataliia.jpg",
     title: "Петлі та направляючі",
+    insertedAt: "2026-04-03T11:00:00.000Z",
     startDate: "2026-04-18",
     endDate: "2026-04-29",
   },
@@ -123,6 +136,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Олег В.",
     avatarUrl: "./avatars/oleh.jpg",
     title: "Матеріали для шафи",
+    insertedAt: "2026-04-07T14:30:00.000Z",
     startDate: "2026-04-24",
     endDate: "2026-05-05",
   },
@@ -132,6 +146,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Олег В.",
     avatarUrl: "./avatars/oleh.jpg",
     title: "Замовлення ДСП",
+    insertedAt: "2026-04-14T09:00:00.000Z",
     startDate: "2026-05-02",
     endDate: "2026-05-15",
   },
@@ -141,6 +156,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Без відповідального",
     avatarUrl: null,
     title: "Комплект ручок",
+    insertedAt: "2026-04-20T12:00:00.000Z",
     startDate: "2026-05-12",
     endDate: "2026-05-22",
   },
@@ -150,6 +166,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Роман Л.",
     avatarUrl: "./avatars/roman.jpg",
     title: "Монтаж барної стійки",
+    insertedAt: "2026-04-25T08:00:00.000Z",
     startDate: "2026-05-06",
     endDate: "2026-05-09",
   },
@@ -159,6 +176,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Роман Л.",
     avatarUrl: "./avatars/roman.jpg",
     title: "Монтаж кухні",
+    insertedAt: "2026-04-28T10:00:00.000Z",
     startDate: "2026-05-15",
     endDate: "2026-05-25",
   },
@@ -168,6 +186,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Віктор Н.",
     avatarUrl: "./avatars/viktor.jpg",
     title: "Монтаж шафи",
+    insertedAt: "2026-05-02T09:00:00.000Z",
     startDate: "2026-05-20",
     endDate: "2026-05-28",
   },
@@ -177,6 +196,7 @@ export const ganttData: GanttTask[] = [
     assignee: "Віктор Н.",
     avatarUrl: "./avatars/viktor.jpg",
     title: "Регулювання фасадів",
+    insertedAt: "2026-05-05T11:00:00.000Z",
     startDate: "2026-05-27",
     endDate: "2026-05-30",
   },
@@ -186,7 +206,38 @@ export const ganttData: GanttTask[] = [
     assignee: "Без відповідального",
     avatarUrl: null,
     title: "Фінальна перевірка",
+    insertedAt: "2026-05-10T14:00:00.000Z",
     startDate: "2026-05-29",
     endDate: "2026-06-01",
-  }
+  },
+
+  // --- Edge case 1: insertedAt + startDate, NO endDate ---
+  {
+    id: "task-021",
+    stage: "ПІДГОТОВКА",
+    assignee: "Ірина М.",
+    avatarUrl: "./avatars/iryna.jpg",
+    title: "Підбір матеріалів",
+    insertedAt: "2026-03-10T08:00:00.000Z",  
+    startDate: "2026-04-15",
+  },
+
+  // --- Edge case 2: insertedAt only, NO startDate, NO endDate ---
+  {
+    id: "task-022",
+    stage: "ВИРОБНИЦТВО",
+    assignee: "Сергій Д.",
+    avatarUrl: "./avatars/serhii.jpg",
+    title: "Оздоблення кромки",
+    insertedAt: "2026-04-28T15:45:00.000Z",
+  },
+
+  // --- Edge case 3: INVALID — no insertedAt, no startDate ---
+  {
+    id: "task-023",
+    stage: "КОМПЛЕКТУВАННЯ",
+    assignee: "Олег В.",
+    avatarUrl: "./avatars/oleh.jpg",
+    title: "Невалідна таска (без дат)",
+  },
 ];
