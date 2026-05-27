@@ -363,6 +363,7 @@ export function renderGantt(tasks: GanttTask[]): string {
                     font-bold
                     cursor-pointer
                     border-b
+                    border-r
                     border-[#dbe1e8]
                     px-4
                     uppercase
