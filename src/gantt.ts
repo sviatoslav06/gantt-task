@@ -29,7 +29,7 @@ interface ResolvedBar {
     style: BarStyle;
 }
 
-function resolveTaskBar(task: GanttTask): ResolvedBar | null {
+export function resolveTaskBar(task: GanttTask): ResolvedBar | null {
     const { id, insertedAt, startDate, endDate } = task;
 
     // Completely invalid — no anchor date at all
